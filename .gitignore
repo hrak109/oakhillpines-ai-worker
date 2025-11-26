@@ -3,7 +3,8 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
-worker/oai-env/
+edge-compute-service/oai-env/
+edge-compute-service/knowledge_base/
 
 # User-specific files
 *.rsuser
