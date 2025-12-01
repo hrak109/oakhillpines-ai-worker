@@ -26,7 +26,7 @@ services:
   redis-tunnel:
     image: alpine:latest
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "6379"]
+      test: ["CMD-SHELL", "nc -z localhost 6379 && nc -z localhost 6380"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -36,11 +36,11 @@ services:
       sh -c "apk add --no-cache openssh-client autossh netcat-openbsd &&
       cp /key.pem /root/id_rsa &&
       chmod 600 /root/id_rsa &&
-      autossh -M 0 -4 -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N -L 0.0.0.0:6379:localhost:6379 -i /root/id_rsa ec2-user@3.146.170.211"
+      autossh -M 0 -4 -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N -L 0.0.0.0:6379:localhost:6379 -L 0.0.0.0:6380:localhost:6380 -i /root/id_rsa ec2-user@3.146.170.211"
     volumes:
       - ~/amazon_rsa_key.pem:/key.pem:ro
 
-  llm_worker:
+  llm_worker_public:
     build: .
     restart: always
     depends_on:
@@ -58,7 +58,28 @@ services:
       REDIS_PORT: 6379
       WEAVIATE_URL: http://weaviate:8080
       OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_MODEL: "llama3.2:3b"
+      OLLAMA_MODEL: "ohp-llama3.2:3b"
+      PYTHONUNBUFFERED: 1
+
+  llm_worker_private:
+    build: .
+    restart: always
+    depends_on:
+      weaviate:
+        condition: service_started
+      ollama:
+        condition: service_started
+      redis-tunnel:
+        condition: service_healthy
+    volumes:
+      - ./knowledge_base:/app/knowledge_base
+      - ./:/app
+    environment:
+      REDIS_HOST: "redis-tunnel"
+      REDIS_PORT: 6380
+      WEAVIATE_URL: http://weaviate:8080
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: "hbb-llama3.2:3b"
       PYTHONUNBUFFERED: 1
 
 volumes:

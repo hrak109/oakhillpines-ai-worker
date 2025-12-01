@@ -45,7 +45,7 @@ def init_global_index():
     
     global_index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
 
-def process_secure_request(question, auth_params):
+def process_rag_request(question, auth_params):
     if isinstance(auth_params, str):
         auth_params = [auth_params]
     
@@ -72,19 +72,12 @@ def process_secure_request(question, auth_params):
         filters=secure_filters,
         similarity_top_k=3
     )
-    
-    # retriever = jit_engine.retriever
-    # nodes = retriever.retrieve(question)
-    
-    # print(f"\n[DEBUG] Retrieved {len(nodes)} nodes for query: '{question}'")
-    # for i, node in enumerate(nodes):
-    #     print(f"  - Node {i}: Score {node.score:.4f} | Content: {node.text[:100]}...")
-    #     print(f"  - Metadata: {node.metadata}")
-    
-    # if len(nodes) == 0:
-    #     return "System Error: No documents found in database."
 
     response = jit_engine.query(question)
+    return str(response)
+
+def process_direct_request(question):
+    response = Settings.llm.complete(question)
     return str(response)
 
 def main():
@@ -98,16 +91,17 @@ def main():
                 parts = item.split("|", 2)
                 
                 if len(parts) == 3:
-                    qid, question, raw_params = parts
+                    qid, question, params = parts
                     try:
-                        auth_params = json.loads(raw_params)
+                        domain_params = json.loads(params)
                     except json.JSONDecodeError:
-                        auth_params = [raw_params]
+                        domain_params = [params]
                 else:
                     qid, question = parts[0], parts[1]
-                    auth_params = [] 
+                    domain_params = [] 
                 
-                answer = process_secure_request(question, auth_params)
+                # answer = process_rag_request(question, domain_params)
+                answer = process_direct_request(question)
 
                 r.set(f"answer:{qid}", answer)
                 
